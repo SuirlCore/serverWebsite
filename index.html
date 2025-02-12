@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Server</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 600px; margin: auto; }
+        .file-list { margin-top: 20px; }
+        .file-item { display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>File Server</h2>
+        <input type="file" id="fileInput">
+        <button onclick="uploadFile()">Upload</button>
+        
+        <div class="file-list" id="fileList"></div>
+    </div>
+
+    <script>
+        function fetchFiles() {
+            fetch('files.php')
+                .then(response => response.json())
+                .then(files => {
+                    let fileList = document.getElementById('fileList');
+                    fileList.innerHTML = '';
+                    files.forEach(file => {
+                        let div = document.createElement('div');
+                        div.className = 'file-item';
+                        div.innerHTML = `<span>${file}</span> <a href='uploads/${file}' download>Download</a>`;
+                        fileList.appendChild(div);
+                    });
+                });
+        }
+        
+        function uploadFile() {
+            let fileInput = document.getElementById('fileInput');
+            let file = fileInput.files[0];
+            let formData = new FormData();
+            formData.append('file', file);
+            
+            fetch('upload.php', {
+                method: 'POST',
+                body: formData
+            }).then(response => response.text())
+              .then(data => {
+                  alert(data);
+                  fetchFiles();
+              });
+        }
+
+        fetchFiles();
+    </script>
+</body>
+</html>
