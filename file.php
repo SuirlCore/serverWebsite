@@ -12,6 +12,7 @@ if (!$currentFilePath || strpos($currentFilePath, realpath($baseDir)) !== 0) {
 
 if ($data['action'] === 'delete') {
     if (file_exists($currentFilePath)) {
+        $fileSize = filesize($currentFilePath);
         if (unlink($currentFilePath)) {
             echo "File deleted successfully!";
         } else {

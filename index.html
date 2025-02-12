@@ -14,6 +14,7 @@
 <body>
     <div class="container">
         <h2>File Server</h2>
+        <p>Storage Used: <span id="storageUsed">Calculating...</span> / 10GB</p>
         <input type="file" id="fileInput">
         <button onclick="uploadFile()">Upload</button>
         
@@ -46,6 +47,15 @@
                         fileList.appendChild(div);
                     });
                     document.getElementById('currentPath').value = currentPath;
+                    fetchStorageUsed();
+                });
+        }
+
+        function fetchStorageUsed() {
+            fetch('storage.php')
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('storageUsed').innerText = data;
                 });
         }
         
