@@ -1,14 +1,14 @@
 <?php
 $data = json_decode(file_get_contents("php://input"), true);
+$baseDir = "uploads/";
+$path = isset($data['path']) ? $data['path'] : "";
+$folderName = basename($data['name']);
+$folderPath = realpath($baseDir . $path) . DIRECTORY_SEPARATOR . $folderName;
 
-if (!isset($data['action']) || !isset($data['name'])) {
-    echo "Invalid request";
+if (!$folderPath || strpos($folderPath, realpath($baseDir)) !== 0) {
+    echo "Invalid folder path.";
     exit;
 }
-
-$baseDir = "uploads/";
-$folderName = basename($data['name']); // Prevent directory traversal
-$folderPath = $baseDir . $folderName;
 
 if ($data['action'] === 'create') {
     if (!file_exists($folderPath)) {
@@ -22,7 +22,7 @@ if ($data['action'] === 'create') {
     }
 } elseif ($data['action'] === 'delete') {
     if (is_dir($folderPath)) {
-        if (count(scandir($folderPath)) == 2) { // Ensure folder is empty
+        if (count(scandir($folderPath)) == 2) { // Check if empty
             if (rmdir($folderPath)) {
                 echo "Folder deleted successfully!";
             } else {

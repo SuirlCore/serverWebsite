@@ -1,12 +1,21 @@
 <?php
+$baseDir = "uploads/";
+$path = isset($_POST['path']) ? $_POST['path'] : "";
+$uploadDir = realpath($baseDir . $path);
+
+if (!$uploadDir || strpos($uploadDir, realpath($baseDir)) !== 0) {
+    echo "Invalid upload path.";
+    exit;
+}
+
 if (!empty($_FILES['file'])) {
-    $target_dir = "uploads/";
-    $target_file = $target_dir . basename($_FILES["file"]["name"]);
-    
-    if (move_uploaded_file($_FILES["file"]["tmp_name"], $target_file)) {
+    $fileName = basename($_FILES['file']['name']);
+    $targetFile = $uploadDir . DIRECTORY_SEPARATOR . $fileName;
+
+    if (move_uploaded_file($_FILES['file']['tmp_name'], $targetFile)) {
         echo "File uploaded successfully!";
     } else {
-        echo "Error uploading file.";
+        echo "File upload failed.";
     }
 }
 ?>
