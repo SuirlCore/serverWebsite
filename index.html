@@ -17,6 +17,9 @@
         <input type="file" id="fileInput">
         <button onclick="uploadFile()">Upload</button>
         
+        <input type="text" id="folderName" placeholder="Folder Name">
+        <button onclick="createFolder()">Create Folder</button>
+        
         <div class="file-list" id="fileList"></div>
     </div>
 
@@ -30,7 +33,7 @@
                     files.forEach(file => {
                         let div = document.createElement('div');
                         div.className = 'file-item';
-                        div.innerHTML = `<span>${file}</span> <a href='uploads/${file}' download>Download</a>`;
+                        div.innerHTML = `<span>${file}</span> <a href='uploads/${file}' download>Download</a> <button onclick="deleteFolder('${file}')">Delete</button>`;
                         fileList.appendChild(div);
                     });
                 });
@@ -45,6 +48,31 @@
             fetch('upload.php', {
                 method: 'POST',
                 body: formData
+            }).then(response => response.text())
+              .then(data => {
+                  alert(data);
+                  fetchFiles();
+              });
+        }
+        
+        function createFolder() {
+            let folderName = document.getElementById('folderName').value;
+            fetch('folder.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'create', name: folderName })
+            }).then(response => response.text())
+              .then(data => {
+                  alert(data);
+                  fetchFiles();
+              });
+        }
+
+        function deleteFolder(folderName) {
+            fetch('folder.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'delete', name: folderName })
             }).then(response => response.text())
               .then(data => {
                   alert(data);
