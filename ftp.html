@@ -31,7 +31,7 @@
         let currentPath = "";
         
         function fetchFiles() {
-            fetch(`scripts/files.php?path=${encodeURIComponent(currentPath)}`)
+            fetch(`ftpScripts/files.php?path=${encodeURIComponent(currentPath)}`)
                 .then(response => response.json())
                 .then(files => {
                     let fileList = document.getElementById('fileList');
@@ -52,7 +52,7 @@
         }
 
         function fetchStorageUsed() {
-            fetch('scripts/storage.php')
+            fetch('ftpScripts/storage.php')
                 .then(response => response.text())
                 .then(data => {
                     document.getElementById('storageUsed').innerText = data;
@@ -66,7 +66,7 @@
             formData.append('file', file);
             formData.append('path', currentPath);
             
-            fetch('scripts/upload.php', {
+            fetch('ftpScripts/upload.php', {
                 method: 'POST',
                 body: formData
             }).then(response => response.text())
@@ -78,7 +78,7 @@
         
         function createFolder() {
             let folderName = document.getElementById('folderName').value;
-            fetch('scripts/folder.php', {
+            fetch('ftpScripts/folder.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'create', name: folderName, path: currentPath })
@@ -90,7 +90,7 @@
         }
 
         function deleteFolder(folderName) {
-            fetch('scripts/folder.php', {
+            fetch('ftpScripts/folder.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'delete', name: folderName, path: currentPath })
@@ -102,7 +102,7 @@
         }
 
         function deleteFile(fileName) {
-            fetch('scripts/file.php', {
+            fetch('/file.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'delete', name: fileName, path: currentPath })
@@ -116,7 +116,7 @@
         function moveFile(fileName) {
             let newPath = prompt("Enter the new folder path:", currentPath);
             if (newPath !== null) {
-                fetch('scripts/file.php', {
+                fetch('ftpScripts/file.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'move', name: fileName, path: currentPath, newPath: newPath })
