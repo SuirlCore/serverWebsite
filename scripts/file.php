@@ -1,6 +1,6 @@
 <?php
 $data = json_decode(file_get_contents("php://input"), true);
-$baseDir = "uploads/";
+$baseDir = ".//uploads/";
 $path = isset($data['path']) ? $data['path'] : "";
 $fileName = basename($data['name']);
 $currentFilePath = realpath($baseDir . $path) . DIRECTORY_SEPARATOR . $fileName;

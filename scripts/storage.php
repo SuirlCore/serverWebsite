@@ -1,5 +1,5 @@
 <?php
-$uploadDir = 'uploads'; // Adjust this path if needed
+$uploadDir = './/uploads'; // Adjust this path if needed
 $totalSpace = 10 * 1024 * 1024 * 1024; // 10GB in bytes
 
 function getFolderSize($folder) {
