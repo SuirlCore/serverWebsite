@@ -1,5 +1,5 @@
 <?php
-$baseDir = ".//uploads/";
+$baseDir = "../uploads/";
 $path = isset($_GET['path']) ? $_GET['path'] : "";
 $directory = realpath($baseDir . $path);
 

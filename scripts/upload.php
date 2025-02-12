@@ -1,5 +1,5 @@
 <?php
-$baseDir = ".//uploads/";
+$baseDir = "../uploads/";
 $maxStorage = 10 * 1024 * 1024 * 1024; // 10GB in bytes
 $path = isset($_POST['path']) ? $_POST['path'] : "";
 $uploadDir = realpath($baseDir . $path);
