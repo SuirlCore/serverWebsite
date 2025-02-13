@@ -13,7 +13,7 @@ if (!isset($_SESSION['user_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Book Chunks</title>
+    <title>Apache on Odin</title>
 </head>
 <body>
     <?php include 'navigation.php'; ?>
