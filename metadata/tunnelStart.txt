@@ -1,0 +1,9 @@
+ngrok.com
+
+in terminal start the tunnel with this:
+ngrok http --url=reliably-apt-buzzard.ngrok-free.app 80
+
+
+
+show sql statements sent to mariadbl in terminal in real time:
+sudo tail -f /var/log/mysql/mariadb.log
