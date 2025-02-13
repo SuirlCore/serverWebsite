@@ -22,26 +22,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // Start a session and store user info in session variables
             $_SESSION['user_id'] = $row['userID'];
             $_SESSION['username'] = $username;
-            $_SESSION['fontSize'] = $row['fontSize'];
-            $_SESSION['fontColor'] = $row['fontColor'];
-            $_SESSION['fontSelect'] = $row['fontSelect'];
-            $_SESSION['backgroundColor'] = $row['backgroundColor'];
-            $_SESSION['lineHeight'] = $row['lineHeight'];
-            $_SESSION['highlightColor'] = $row['highlightColor'];
-            $_SESSION['highlightingToggle'] = $row['highlightingToggle'];
-            $_SESSION['buttonColor'] = $row['buttonColor'];
-            $_SESSION['buttonHoverColor'] = $row['buttonHoverColor'];
-            $_SESSION['buttonTextColor'] = $row['buttonTextColor'];
             $_SESSION['userLevel'] = $row['userLevel'];
-            $_SESSION['maxWordsPerChunk'] = $row['maxWordsPerChunk'];
-            $_SESSION['textToVoice'] = $row['textToVoice'];
             
-            // Optionally, create the auto_login cookie if they choose to be remembered
-            if (isset($_POST['autoLogin']) && $_POST['autoLogin'] == 1) {
-                setcookie('auto_login', $username, time() + (86400 * 30), "/"); // Set cookie for 30 days
-            }
 
-            header("Location: ../scrollView.php"); // Redirect to scrollView page after successful login
+            header("Location: ../welcome.php"); // Redirect to welcome page after successful login
         } else {
             echo "Incorrect password.";
         }

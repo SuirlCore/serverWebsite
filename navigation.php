@@ -5,35 +5,23 @@
 }
 
 $userLevel = $_SESSION['userLevel'] ?? 0;
-
-$fontSizeChoiceNav = $_SESSION['fontSize'];
-$fontColorChoiceNav = $_SESSION['fontColor'];
-$backgroundColorChoiceNav = $_SESSION['backgroundColor'];
-
 ?>
 <style>
 body {
-    font-family: <?= htmlspecialchars($_SESSION['fontSelect']); ?>;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    color: <?= htmlspecialchars($fontColorChoiceNav); ?>; /* Dynamic font color */
-    background-color: <?= htmlspecialchars($backgroundColorChoiceNav); ?>; /* Dynamic background color */
-
     }
 
 .nav-container {
     display: flex;
     align-items: center;
     padding: 10px;
-    background-color: <?= htmlspecialchars($backgroundColorChoiceNav); ?>; /* Dynamic background color */
     border-bottom: 1px solid #ddd;
 }
 
 .menu-button {
-    background-color: <?= htmlspecialchars($_SESSION['buttonColor']); ?>;
-    color: <?= htmlspecialchars($_SESSION['buttonTextColor']); ?>;
     border: none;
     padding: 10px 20px;
     font-size: 16px;
@@ -42,13 +30,11 @@ body {
 }
 
 .menu-button:hover {
-    background-color: 	<?= htmlspecialchars($_SESSION['buttonHoverColor']); ?>;
 }
 
 .user-info {
     margin-left: auto; /* Pushes the user-info section to the far right */
     font-size: 16px;
-    color: <?= htmlspecialchars($fontColorNav); ?>;
 }
 
 .user-name {
@@ -83,13 +69,12 @@ body {
 <div class="nav-container">
     <button class="menu-button" onclick="toggleMenu()">☰ Menu</button>
     <div class="user-info">
-            Book Chunks - <span class="user-name"><?php echo htmlspecialchars($_SESSION['username'] ?? 'Guest'); ?></span>
-        <img src="images/bookChunkSm.png" alt="Book Chunks Logo" style="width:50px;height:50px;"> 
+            Apache on Odin: - <span class="user-name"><?php echo htmlspecialchars($_SESSION['username'] ?? 'Guest'); ?></span>
     </div>
     <div class="nav-menu" id="navMenu">
         <a href="welcome.php">Welcome Page</a>
         <a href="ftp.php">FTP Page</a>
-        
+        <a href="scripts/logout.php">Logout</a>
         <?php if ($userLevel == 1): ?>
             <a href="">Link to SU stuff</a>
         <?php endif; ?>
