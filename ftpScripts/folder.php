@@ -1,40 +1,37 @@
 <?php
-$data = json_decode(file_get_contents("php://input"), true);
-$baseDir = "../uploads/";
-$path = isset($data['path']) ? $data['path'] : "";
-$folderName = basename($data['name']);
-$folderPath = realpath($baseDir . $path) . DIRECTORY_SEPARATOR . $folderName;
+session_start();
 
-if (!$folderPath || strpos($folderPath, realpath($baseDir)) !== 0) {
-    echo "Invalid folder path.";
-    exit;
+if (!isset($_SESSION['username'])) {
+    die("Unauthorized.");
 }
 
-if ($data['action'] === 'create') {
-    if (!file_exists($folderPath)) {
-        if (mkdir($folderPath, 0777, true)) {
-            echo "Folder created successfully!";
-        } else {
-            echo "Failed to create folder.";
-        }
-    } else {
-        echo "Folder already exists.";
+$username = $_SESSION['username'];
+$userFolder = "../uploads/" . preg_replace("/[^a-zA-Z0-9_-]/", "_", $username);
+
+
+function getFolderSize($folder) {
+    $size = 0;
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($folder, FilesystemIterator::SKIP_DOTS)) as $file) {
+        $size += $file->getSize();
     }
-} elseif ($data['action'] === 'delete') {
-    if (is_dir($folderPath)) {
-        if (count(scandir($folderPath)) == 2) { // Check if empty
-            if (rmdir($folderPath)) {
-                echo "Folder deleted successfully!";
-            } else {
-                echo "Failed to delete folder.";
-            }
-        } else {
-            echo "Folder is not empty!";
-        }
-    } else {
-        echo "Folder does not exist.";
-    }
+    return $size;
+}
+
+$maxSize = 10 * 1024 * 1024 * 1024; // 10GB limit
+$currentSize = getFolderSize($userFolder);
+
+if ($currentSize >= $maxSize) {
+    die("Cannot create folder: Storage limit exceeded (10GB).");
+}
+
+$data = json_decode(file_get_contents("php://input"), true);
+$folderName = preg_replace("/[^a-zA-Z0-9_-]/", "_", $data['name']);
+$folderPath = $userFolder . "/" . $folderName;
+
+if (!file_exists($folderPath)) {
+    mkdir($folderPath, 0777, true);
+    echo "Folder created.";
 } else {
-    echo "Invalid action.";
+    echo "Folder already exists.";
 }
 ?>

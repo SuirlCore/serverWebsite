@@ -1,3 +1,21 @@
+<?php
+session_start();
+if (!isset($_SESSION['username'])) {
+    header("Location: login.php"); // Redirect to login if not logged in
+    exit();
+}
+
+$username = $_SESSION['username']; // Get the logged-in username
+$userRoot = "uploads/" . preg_replace("/[^a-zA-Z0-9_-]/", "_", $username); // Ensure valid folder name
+$currentPath = isset($_GET['path']) ? $_GET['path'] : "";
+
+if (strpos(realpath($userRoot . "/" . $currentPath), realpath($userRoot)) !== 0) {
+    // Prevent user from escaping their directory
+    $currentPath = "";
+}
+
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -23,15 +41,16 @@
         <input type="text" id="folderName" placeholder="Folder Name">
         <button onclick="createFolder()">Create Folder</button>
         
-        <input type="text" id="currentPath" value="" readonly>
-        <button onclick="navigateUp()">Go Up</button>
+        <input type="text" id="currentPath" value="<?php echo htmlspecialchars($currentPath); ?>" readonly>
+        <button id="goUpButton" onclick="navigateUp()">Go Up</button>
         
         <div class="file-list" id="fileList"></div>
     </div>
 
     <script>
-        let currentPath = "";
-        
+        let userRoot = "<?php echo $userRoot; ?>";
+        let currentPath = "<?php echo $currentPath; ?>";
+
         function fetchFiles() {
             fetch(`ftpScripts/files.php?path=${encodeURIComponent(currentPath)}`)
                 .then(response => response.json())
@@ -44,22 +63,31 @@
                         if (file.isDir) {
                             div.innerHTML = `<span onclick="navigateTo('${file.name}')" style="cursor: pointer; color: blue;">📁 ${file.name}</span> <button onclick="deleteFolder('${file.name}')">Delete</button>`;
                         } else {
-                            div.innerHTML = `<span>${file.name}</span> <a href='uploads/${currentPath}/${file.name}' download>Download</a> <button onclick="deleteFile('${file.name}')">Delete</button> <button onclick="moveFile('${file.name}')">Move</button>`;
+                            div.innerHTML = `<span>${file.name}</span> <a href='${userRoot}/${currentPath}/${file.name}' download>Download</a> <button onclick="deleteFile('${file.name}')">Delete</button> <button onclick="moveFile('${file.name}')">Move</button>`;
                         }
                         fileList.appendChild(div);
                     });
                     document.getElementById('currentPath').value = currentPath;
                     fetchStorageUsed();
+                    updateGoUpButton();
                 });
         }
 
-        function fetchStorageUsed() {
-            fetch('ftpScripts/storage.php')
-                .then(response => response.text())
-                .then(data => {
-                    document.getElementById('storageUsed').innerText = data;
-                });
+        function updateGoUpButton() {
+            document.getElementById("goUpButton").disabled = (currentPath === "");
         }
+
+        function fetchStorageUsed() {
+        fetch('ftpScripts/storage.php')
+        .then(response => response.text())
+        .then(data => {
+            document.getElementById('storageUsed').innerText = data;
+            let used = parseFloat(data);
+            if (used >= 10) {
+                alert("Warning: You have reached your 10GB storage limit!");
+            }
+        });
+}
         
         function uploadFile() {
             let fileInput = document.getElementById('fileInput');
@@ -104,7 +132,7 @@
         }
 
         function deleteFile(fileName) {
-            fetch('/file.php', {
+            fetch('ftpScripts/file.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'delete', name: fileName, path: currentPath })
@@ -136,6 +164,7 @@
         }
 
         function navigateUp() {
+            if (currentPath === "") return; // Prevent navigating above user root
             let pathParts = currentPath.split('/');
             pathParts.pop();
             currentPath = pathParts.join('/');

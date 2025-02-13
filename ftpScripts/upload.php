@@ -1,38 +1,38 @@
 <?php
-$baseDir = "../uploads/";
-$maxStorage = 10 * 1024 * 1024 * 1024; // 10GB in bytes
-$path = isset($_POST['path']) ? $_POST['path'] : "";
-$uploadDir = realpath($baseDir . $path);
+session_start();
 
-if (!$uploadDir || strpos($uploadDir, realpath($baseDir)) !== 0) {
-    echo "Invalid upload path.";
-    exit;
+if (!isset($_SESSION['username'])) {
+    die("Unauthorized.");
 }
 
-function getDirectorySize($dir) {
+$username = $_SESSION['username'];
+$userFolder = "../uploads/" . preg_replace("/[^a-zA-Z0-9_-]/", "_", $username);
+
+
+if (!is_dir($userFolder)) {
+    mkdir($userFolder, 0777, true);
+}
+
+function getFolderSize($folder) {
     $size = 0;
-    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS)) as $file) {
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($folder, FilesystemIterator::SKIP_DOTS)) as $file) {
         $size += $file->getSize();
     }
     return $size;
 }
 
-$currentSize = getDirectorySize($baseDir);
-$fileSize = $_FILES['file']['size'];
+$maxSize = 10 * 1024 * 1024 * 1024; // 10GB in bytes
+$currentSize = getFolderSize($userFolder);
 
-if ($currentSize + $fileSize > $maxStorage) {
-    echo "Upload failed! Storage limit exceeded (10GB max).";
-    exit;
+if ($_FILES['file']['size'] + $currentSize > $maxSize) {
+    die("Upload failed: Storage limit exceeded (10GB).");
 }
 
-if (!empty($_FILES['file'])) {
-    $fileName = basename($_FILES['file']['name']);
-    $targetFile = $uploadDir . DIRECTORY_SEPARATOR . $fileName;
+$targetFile = $userFolder . "/" . basename($_FILES["file"]["name"]);
 
-    if (move_uploaded_file($_FILES['file']['tmp_name'], $targetFile)) {
-        echo "File uploaded successfully!";
-    } else {
-        echo "File upload failed.";
-    }
+if (move_uploaded_file($_FILES["file"]["tmp_name"], $targetFile)) {
+    echo "Upload successful.";
+} else {
+    echo "Upload failed.";
 }
 ?>
