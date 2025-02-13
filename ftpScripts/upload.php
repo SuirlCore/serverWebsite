@@ -1,38 +1,50 @@
 <?php
 session_start();
-
 if (!isset($_SESSION['username'])) {
-    die("Unauthorized.");
+    echo "Unauthorized access!";
+    exit();
 }
 
 $username = $_SESSION['username'];
-$userFolder = "../uploads/" . preg_replace("/[^a-zA-Z0-9_-]/", "_", $username);
+$userLevel = $_SESSION['userLevel'];
 
+$userRoot = "/var/www/html/serverWebpage/uploads/" . preg_replace("/[^a-zA-Z0-9_-]/", "_", $username);
+$adminRoot = ($userLevel == 1) ? "/var/www/html" : null;
 
-if (!is_dir($userFolder)) {
-    mkdir($userFolder, 0777, true);
+$selectedRoot = isset($_POST['root']) && $userLevel == 1 && $_POST['root'] === "admin" ? $adminRoot : $userRoot;
+$currentPath = isset($_POST['path']) ? $_POST['path'] : "";
+
+// Combine paths and resolve the real path
+$targetDir = realpath($selectedRoot . "/" . ltrim($currentPath, "/"));
+
+if (!$targetDir || !is_dir($targetDir)) {
+    echo "Invalid directory!";
+    exit();
 }
 
-function getFolderSize($folder) {
-    $size = 0;
-    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($folder, FilesystemIterator::SKIP_DOTS)) as $file) {
-        $size += $file->getSize();
+if (isset($_FILES['file'])) {
+    $files = $_FILES['file'];
+    $fileCount = count($files['name']);
+    
+    for ($i = 0; $i < $fileCount; $i++) {
+        $fileName = basename($files['name'][$i]);
+        $fileTmpName = $files['tmp_name'][$i];
+        $fileSize = $files['size'][$i];
+
+        $targetFilePath = $targetDir . '/' . $fileName;
+
+        if (file_exists($targetFilePath)) {
+            echo "File $fileName already exists!<br>";
+            continue;
+        }
+
+        if (move_uploaded_file($fileTmpName, $targetFilePath)) {
+            echo "File $fileName uploaded successfully.<br>";
+        } else {
+            echo "Error uploading $fileName.<br>";
+        }
     }
-    return $size;
-}
-
-$maxSize = 10 * 1024 * 1024 * 1024; // 10GB in bytes
-$currentSize = getFolderSize($userFolder);
-
-if ($_FILES['file']['size'] + $currentSize > $maxSize) {
-    die("Upload failed: Storage limit exceeded (10GB).");
-}
-
-$targetFile = $userFolder . "/" . basename($_FILES["file"]["name"]);
-
-if (move_uploaded_file($_FILES["file"]["tmp_name"], $targetFile)) {
-    echo "Upload successful.";
 } else {
-    echo "Upload failed.";
+    echo "No files were uploaded.<br>";
 }
 ?>

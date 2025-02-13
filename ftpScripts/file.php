@@ -1,15 +1,35 @@
 <?php
-$data = json_decode(file_get_contents("php://input"), true);
-$baseDir = "../uploads/";
-$path = isset($data['path']) ? $data['path'] : "";
-$fileName = basename($data['name']);
-$currentFilePath = realpath($baseDir . $path) . DIRECTORY_SEPARATOR . $fileName;
+session_start();  // Make sure the session is started to access the username
 
-if (!$currentFilePath || strpos($currentFilePath, realpath($baseDir)) !== 0) {
+// Retrieve user information
+$username = isset($_SESSION['username']) ? $_SESSION['username'] : null;
+if (!$username) {
+    echo "Unauthorized access!";
+    exit;
+}
+
+// Get the data from the request
+$data = json_decode(file_get_contents("php://input"), true);
+
+// Base directory for uploads - ensure this points to the correct absolute path
+$baseDir = realpath("../uploads/") . DIRECTORY_SEPARATOR . $username;  // User's specific folder
+
+if (!$baseDir) {
+    echo "Base directory does not exist.";
+    exit;
+}
+
+$path = isset($data['path']) ? $data['path'] : "";
+$fileName = basename($data['name']);  // Sanitize the file name
+$currentFilePath = realpath($baseDir . DIRECTORY_SEPARATOR . $path) . DIRECTORY_SEPARATOR . $fileName;
+
+// Validate that the current file path is within the user's folder
+if (!$currentFilePath || strpos($currentFilePath, $baseDir) !== 0) {
     echo "Invalid file path.";
     exit;
 }
 
+// Handle delete action
 if ($data['action'] === 'delete') {
     if (file_exists($currentFilePath)) {
         $fileSize = filesize($currentFilePath);
@@ -23,13 +43,14 @@ if ($data['action'] === 'delete') {
     }
 } elseif ($data['action'] === 'move') {
     $newPath = isset($data['newPath']) ? $data['newPath'] : "";
-    $newDir = realpath($baseDir . $newPath);
-    $newFilePath = $newDir . DIRECTORY_SEPARATOR . $fileName;
+    $newDir = realpath($baseDir . DIRECTORY_SEPARATOR . $newPath);
 
-    if (!$newDir || strpos($newDir, realpath($baseDir)) !== 0) {
+    if (!$newDir || strpos($newDir, $baseDir) !== 0) {
         echo "Invalid target path.";
         exit;
     }
+
+    $newFilePath = $newDir . DIRECTORY_SEPARATOR . $fileName;
 
     if (rename($currentFilePath, $newFilePath)) {
         echo "File moved successfully!";

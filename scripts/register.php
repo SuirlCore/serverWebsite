@@ -27,16 +27,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         // Get the userID for the recently created user
         $userID = $conn->insert_id; // Get the last inserted ID
-        
-        // Create a user folder inside 'uploads'
-        $uploadDir = __DIR__ . "/uploads/" . preg_replace("/[^a-zA-Z0-9_-]/", "_", $username); // Sanitize folder name
-        if (!file_exists($uploadDir)) {
-            if (mkdir($uploadDir, 0777, true)) { // Creates the directory with full permissions
-                echo "User folder created successfully.";
-            } else {
-                echo "Error creating user folder.";
-            }
-        }
+
+         // Create a user folder inside 'uploads'
+         $uploadDir = "/var/www/html/serverWebpage/uploads" . $username;
+         if (!file_exists($uploadDir)) {
+             if (mkdir($uploadDir, 0777, true)) {
+                 echo "User folder created successfully.";
+             } else {
+                 echo "Error creating user folder.";
+             }
+         }
         
         header("Location: ../login.php"); // Redirect to login page after successful registration
         exit();

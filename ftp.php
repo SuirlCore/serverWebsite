@@ -8,13 +8,13 @@ if (!isset($_SESSION['username'])) {
 $username = $_SESSION['username']; // Get the logged-in username
 $userLevel = $_SESSION['userLevel']; // Get user level
 
-// Define primary user root
+// Define user directory in the 'uploads' directory
 $userRoot = "uploads/" . preg_replace("/[^a-zA-Z0-9_-]/", "_", $username);
 
 // Define secondary root for admins (userLevel == 1)
 $adminRoot = ($userLevel == 1) ? "/var/www/html" : null;
 
-// Determine the selected root directory
+// Determine the selected root directory based on user level and request
 $selectedRoot = isset($_GET['root']) && $userLevel == 1 && $_GET['root'] === "admin" ? $adminRoot : $userRoot;
 
 // Prevent directory traversal attacks
@@ -55,7 +55,7 @@ if ($realPath === false || strpos($realPath, $realBase) !== 0) {
             <button onclick="switchRoot('admin')">Admin Root</button>
         <?php endif; ?>
 
-        <input type="file" id="fileInput">
+        <input type="file" id="fileInput" multiple>
         <button onclick="uploadFile()">Upload</button>
         
         <input type="text" id="folderName" placeholder="Folder Name">
@@ -68,40 +68,52 @@ if ($realPath === false || strpos($realPath, $realBase) !== 0) {
     </div>
 
     <script>
-        let userRoot = "<?php echo $userRoot; ?>";
-        let adminRoot = "<?php echo $adminRoot ? $adminRoot : ''; ?>";
-        let userLevel = <?php echo $userLevel; ?>;
-        let selectedRoot = "<?php echo $selectedRoot; ?>";
-        let currentPath = "<?php echo $currentPath; ?>";
+        let userRoot = <?php echo json_encode($userRoot); ?>;
+        let adminRoot = <?php echo json_encode($adminRoot ? $adminRoot : ''); ?>;
+        let userLevel = <?php echo json_encode($userLevel); ?>;
+        let selectedRoot = <?php echo json_encode($selectedRoot); ?>;
+        let currentPath = <?php echo json_encode($currentPath); ?>;
 
         function switchRoot(root) {
             let rootPath = (root === 'admin') ? adminRoot : userRoot;
-            window.location.href = `?root=${root}&path=`;
+            currentPath = ""; // Reset currentPath when switching root
+            selectedRoot = rootPath;  // Update selectedRoot
+
+            // Update the URL with the new root and reset the path to the root
+            window.location.href = `?root=${root}&path=${encodeURIComponent(currentPath)}`;
         }
 
         function fetchFiles() {
-            fetch(`ftpScripts/files.php?path=${encodeURIComponent(currentPath)}`)
-            .then(response => response.json())
-            .then(files => {
-                if (!Array.isArray(files)) {
-                    console.error("Error: Response is not an array", files);
-                    return;
-                }
-                let fileList = document.getElementById('fileList');
-                fileList.innerHTML = '';
-                files.forEach(file => {
-                    let div = document.createElement('div');
-                    div.className = 'file-item';
-                    if (file.isDir) {
-                        div.innerHTML = `<span onclick="navigateTo('${file.name}')" style="cursor: pointer; color: blue;">📁 ${file.name}</span> <button onclick="deleteFolder('${file.name}')">Delete</button>`;
-                    } else {
-                        div.innerHTML = `<span>${file.name}</span> <a href='${userRoot}/${currentPath}/${file.name}' download>Download</a> <button onclick="deleteFile('${file.name}')">Delete</button> <button onclick="moveFile('${file.name}')">Move</button>`;
+            fetch(`ftpScripts/files.php?path=${encodeURIComponent(currentPath)}&root=${encodeURIComponent(selectedRoot === adminRoot ? 'admin' : 'user')}`)
+                .then(response => response.text())  // Change to text to check raw response
+                .then(text => {
+                    try {
+                        let files = JSON.parse(text);  // Try to parse the response as JSON
+                        console.log(files);  // Log the response for inspection
+                        if (!Array.isArray(files)) {
+                            console.error("Error: Response is not an array", files);
+                            return;
+                        }
+                        let fileList = document.getElementById('fileList');
+                        fileList.innerHTML = '';
+                        files.forEach(file => {
+                            let div = document.createElement('div');
+                            div.className = 'file-item';
+                            if (file.isDir) {
+                                div.innerHTML = `<span onclick="navigateTo('${file.name}')" style="cursor: pointer; color: blue;">📁 ${file.name}</span> <button onclick="deleteFolder('${file.name}')">Delete</button>`;
+                            } else {
+                                div.innerHTML = `<span>${file.name}</span> <a href='${selectedRoot}/${currentPath}/${file.name}' download>Download</a> <button onclick="deleteFile('${file.name}')">Delete</button> <button onclick="moveFile('${file.name}')">Move</button>`;
+                            }
+                            fileList.appendChild(div);
+                        });
+                    } catch (error) {
+                        console.error("Error parsing JSON response:", error);
+                        console.error("Response:", text);  // Log the raw response to debug
                     }
-                    fileList.appendChild(div);
-                });
-            })
-            .catch(error => console.error("Fetch error:", error));
+                })
+                .catch(error => console.error("Fetch error:", error));
         }
+
 
         function updateGoUpButton() {
             document.getElementById("goUpButton").disabled = (currentPath === "");
@@ -115,21 +127,29 @@ if ($realPath === false || strpos($realPath, $realBase) !== 0) {
                 fetch('ftpScripts/storage.php')
                     .then(response => response.text())
                     .then(data => {
+                        console.log('Storage Used:', data);  // Debugging line
                         document.getElementById('storageUsed').innerText = data;
                         document.getElementById('storageLimit').innerText = "/ 10GB";
                         let used = parseFloat(data);
                         if (used >= 10) {
                             alert("Warning: You have reached your 10GB storage limit!");
                         }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching storage:', error);
                     });
             }
         }
 
         function uploadFile() {
             let fileInput = document.getElementById('fileInput');
-            let file = fileInput.files[0];
+            let files = fileInput.files;  // Get all selected files
             let formData = new FormData();
-            formData.append('file', file);
+            
+            // Append each file to the FormData object
+            for (let i = 0; i < files.length; i++) {
+                formData.append('file[]', files[i]);  // Use an array-like format for multiple files
+            }
             formData.append('path', currentPath);
             formData.append('root', selectedRoot);
 
@@ -137,10 +157,10 @@ if ($realPath === false || strpos($realPath, $realBase) !== 0) {
                 method: 'POST',
                 body: formData
             }).then(response => response.text())
-              .then(data => {
-                  alert(data);
-                  fetchFiles();
-              });
+            .then(data => {
+                alert(data);
+                fetchFiles();
+            });
         }
 
         function createFolder() {
@@ -192,6 +212,9 @@ if ($realPath === false || strpos($realPath, $realBase) !== 0) {
             currentPath = pathParts.join('/');
             fetchFiles();
         }
+
+        // Call fetchStorageUsed when the page loads
+        fetchStorageUsed();
 
         fetchFiles();
     </script>
