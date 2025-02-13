@@ -88,14 +88,10 @@ body {
     </div>
     <div class="nav-menu" id="navMenu">
         <a href="welcome.php">Welcome Page</a>
-        <a href="scrollView.php">Scroll Feed</a>
-        <a href="setupFeed.php">Setup Feeds</a>
-        <a href="devNotes.php">Development Notes</a>
-        <a href="about.php">About</a>
-        <a href="updateUser.php">User Settings</a>
-        <a href="scripts/logout.php">Log Out</a>
-        <?php if ($userLevel == 2): ?>
-            <a href="systemData.php">System Usage</a>
+        <a href="ftp.php">FTP Page</a>
+        
+        <?php if ($userLevel == 1): ?>
+            <a href="">Link to SU stuff</a>
         <?php endif; ?>
     </div>
 </div>

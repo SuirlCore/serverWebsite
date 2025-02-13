@@ -12,6 +12,8 @@
     </style>
 </head>
 <body>
+    <?php include 'navigation.php'; ?>
+
     <div class="container">
         <h2>File Server</h2>
         <p>Storage Used: <span id="storageUsed">Calculating...</span> / 10GB</p>
