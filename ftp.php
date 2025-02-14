@@ -1,139 +1,222 @@
 <?php
 session_start();
+?>
 
-// Mock authentication (Replace this with your actual authentication system)
-if (!isset($_SESSION['username'])) {
-    $_SESSION['username'] = 'guest';  // Replace with actual username after login
-    $_SESSION['userLevel'] = 0;       // Change accordingly
-}
-
-$username = $_SESSION['username'];
-$userLevel = $_SESSION['userLevel'];
-
-// Define directories
-$userDir = "uploads/$username";
-$adminDir = "/var/www/html";  // Ensure this is an appropriate location for admin uploads
-
-// Ensure user directory exists
-if (!file_exists($userDir)) {
-    mkdir($userDir, 0777, true);  // This ensures the user directory is created with full permissions
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Handle file upload
-    if (isset($_FILES['file'])) {
-        $targetDir = ($_POST['directory'] === 'admin' && $userLevel == 1) ? $adminDir : $userDir;
-        $targetFile = $targetDir . '/' . basename($_FILES['file']['name']);
-
-        // Optional: You can add file validation here (e.g., check file type, size)
-
-        if (move_uploaded_file($_FILES['file']['tmp_name'], $targetFile)) {
-            echo json_encode(["success" => true, "message" => "File uploaded successfully."]);
-        } else {
-            echo json_encode(["success" => false, "message" => "Failed to upload file."]);
-        }
-    } 
-    
-    // Handle file deletion
-    if (isset($_POST['delete'])) {
-        $filePath = ($_POST['directory'] === 'admin' && $userLevel == 1) ? $adminDir : $userDir;
-        $filePath .= '/' . basename($_POST['delete']);  // Use basename() to avoid directory traversal
-    
-        // Attempt file deletion
-        if (file_exists($filePath) && unlink($filePath)) {
-            // Respond with success
-            echo json_encode(["success" => true, "message" => "File deleted successfully."]);
-        } else {
-            // Respond with failure
-            echo json_encode(["success" => false, "message" => "Failed to delete file."]);
-        }
-        exit;  // Ensure the script stops after sending the response
-    }
-    
-}
-
-// Scan files for user and admin
-$files = scandir($userDir);
-$adminFiles = $userLevel == 1 ? scandir($adminDir) : [];
-?><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Server</title>
+    <title>FTP File Manager</title>
     <style>
         body { font-family: Arial, sans-serif; }
-        .container { width: 50%; margin: auto; text-align: center; }
-        .file-list { margin-top: 20px; }
-        .file-list div { margin: 5px 0; }
+        #file-list { margin-top: 20px; }
+        .file-item { display: flex; align-items: center; margin: 5px 0; }
+        .delete-btn, .move-btn, .move-up-btn, .action-btn {
+            margin-left: 10px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            background-color: #f8f8f8;
+            border-radius: 5px;
+        }
+        .delete-btn { color: red; }
+        .move-btn { color: blue; }
+        .move-up-btn { color: green; }
+        #controls { margin-bottom: 10px; }
+        button { padding: 8px 12px; margin-right: 5px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Welcome, <?= htmlspecialchars($username) ?></h2>
-        <h3>Upload File</h3>
-        <input type="file" id="fileInput">
-        <button onclick="uploadFile('user')">Upload to User Folder</button>
-        <?php if ($userLevel == 1): ?>
-            <button onclick="uploadFile('admin')">Upload to Admin Folder</button>
-        <?php endif; ?>
+    <?php include 'navigation.php'; ?>
+    <h2>FTP File Manager</h2>
 
-        <h3>Your Files</h3>
-        <div class="file-list" id="userFiles">
-            <?php foreach (array_diff($files, ['.', '..']) as $file): ?>
-                <div>
-                    <?= htmlspecialchars($file) ?>
-                    <button onclick="deleteFile('<?= htmlspecialchars($file) ?>', 'user')">Delete</button>
-                </div>
-            <?php endforeach; ?>
-        </div>
-
-        <?php if ($userLevel == 1): ?>
-            <h3>Admin Files</h3>
-            <div class="file-list" id="adminFiles">
-                <?php foreach (array_diff($adminFiles, ['.', '..']) as $file): ?>
-                    <div>
-                        <?= htmlspecialchars($file) ?>
-                        <button onclick="deleteFile('<?= htmlspecialchars($file) ?>', 'admin')">Delete</button>
-                    </div>
-                <?php endforeach; ?>
-            </div>
+    <div id="controls">
+        <!-- Root Selection (Only for Admins) -->
+        <?php if ($_SESSION['userLevel'] == 1): ?>
+            <button onclick="switchRoot()" class="action-btn">Switch Root</button>
         <?php endif; ?>
+        
+        <button onclick="goBack()" id="go-back" style="display: none;">Go Back</button>
+        <input type="file" id="file-input">
+        <button onclick="uploadFile()" class="action-btn">Upload</button>
+        <button onclick="createFolder()" class="action-btn">Create Folder</button>
     </div>
 
+    <div id="file-list"></div>
+
     <script>
-        // Function for uploading file
-        function uploadFile(directory) {
-            let fileInput = document.getElementById("fileInput");
-            if (!fileInput.files.length) return alert("Select a file first!");
-            
-            let formData = new FormData();
-            formData.append("file", fileInput.files[0]);
-            formData.append("directory", directory);
-            
-            fetch("", { method: "POST", body: formData })
-                .then(res => res.json())
-                .then(data => {
-                    alert(data.message);
-                    location.reload();
+        let currentDir = ''; // Track the current folder
+        let currentRoot = 'user'; // Default to user's home directory
+
+        function fetchFiles() {
+            fetch('ftpScripts/ftpBackend.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=fetch&current_dir=${currentDir}&requested_root=${currentRoot}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                const fileList = document.getElementById('file-list');
+                fileList.innerHTML = '';
+
+                data.files.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'file-item';
+                    
+                    const itemName = document.createElement('span');
+                    itemName.textContent = item.name;
+                    itemName.style.cursor = 'pointer';
+
+                    if (item.type === 'folder') {
+                        itemName.onclick = () => navigateToFolder(item.name);
+                    }
+
+                    div.appendChild(itemName);
+
+                    if (item.type === 'file') {
+                        // Delete button
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.textContent = 'Delete';
+                        deleteBtn.className = 'delete-btn';
+                        deleteBtn.onclick = () => deleteFile(item.name);
+                        div.appendChild(deleteBtn);
+
+                        // Move file button
+                        const moveBtn = document.createElement('button');
+                        moveBtn.textContent = 'Move File';
+                        moveBtn.className = 'move-btn';
+                        moveBtn.onclick = () => moveItem(item.name, 'file');
+                        div.appendChild(moveBtn);
+
+                        // Move Up file button
+                        if (currentDir) {
+                            const moveUpBtn = document.createElement('button');
+                            moveUpBtn.textContent = 'Move Up';
+                            moveUpBtn.className = 'move-up-btn';
+                            moveUpBtn.onclick = () => moveUp(item.name);
+                            div.appendChild(moveUpBtn);
+                        }
+                    } else if (item.type === 'folder') {
+                        // Delete folder button
+                        const deleteFolderBtn = document.createElement('button');
+                        deleteFolderBtn.textContent = 'Delete Folder';
+                        deleteFolderBtn.className = 'delete-btn';
+                        deleteFolderBtn.onclick = () => deleteFolder(item.name);
+                        div.appendChild(deleteFolderBtn);
+
+                        // Move folder button
+                        const moveBtn = document.createElement('button');
+                        moveBtn.textContent = 'Move Folder';
+                        moveBtn.className = 'move-btn';
+                        moveBtn.onclick = () => moveItem(item.name, 'folder');
+                        div.appendChild(moveBtn);
+
+                        // Move Up folder button
+                        if (currentDir) {
+                            const moveUpBtn = document.createElement('button');
+                            moveUpBtn.textContent = 'Move Up';
+                            moveUpBtn.className = 'move-up-btn';
+                            moveUpBtn.onclick = () => moveUp(item.name);
+                            div.appendChild(moveUpBtn);
+                        }
+                    }
+
+                    fileList.appendChild(div);
                 });
+
+                document.getElementById('go-back').style.display = currentDir ? 'inline' : 'none';
+            })
+            .catch(error => console.error('Error fetching files:', error));
         }
 
-        // Function for deleting file
-        function deleteFile(fileName, directory) {
-            if (!confirm("Are you sure you want to delete " + fileName + "?")) return;
-            
-            fetch("", {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: new URLSearchParams({ delete: fileName, directory: directory })
-            })
-            .then(res => res.json())
-            .then(data => {
-                alert(data.message);
-                location.reload();
-            });
+        function switchRoot() {
+            currentRoot = (currentRoot === 'user') ? 'server' : 'user';
+            currentDir = ''; // Reset to root of the selected directory
+            fetchFiles();
         }
+
+        function navigateToFolder(folderName) {
+            currentDir = currentDir ? `${currentDir}/${folderName}` : folderName;
+            fetchFiles();
+        }
+
+        function goBack() {
+            const pathArray = currentDir.split('/');
+            pathArray.pop();
+            currentDir = pathArray.join('/');
+            fetchFiles();
+        }
+
+        function uploadFile() {
+            const fileInput = document.getElementById('file-input');
+            const formData = new FormData();
+            formData.append('action', 'upload');
+            formData.append('file', fileInput.files[0]);
+            formData.append('current_dir', currentDir);
+            formData.append('requested_root', currentRoot);
+
+            fetch('ftpScripts/ftpBackend.php', { method: 'POST', body: formData })
+                .then(() => fetchFiles());
+        }
+
+        function deleteFile(file) {
+            if (confirm(`Delete ${file}?`)) {
+                fetch('ftpScripts/ftpBackend.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `action=delete&file=${file}&current_dir=${currentDir}&requested_root=${currentRoot}`
+                }).then(() => fetchFiles());
+            }
+        }
+
+        function deleteFolder(folder) {
+            if (confirm(`Delete folder ${folder}?`)) {
+                fetch('ftpScripts/ftpBackend.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `action=delete_folder&folder=${folder}&current_dir=${currentDir}&requested_root=${currentRoot}`
+                }).then(() => fetchFiles());
+            }
+        }
+
+        function createFolder() {
+            const folderName = prompt('Enter folder name:');
+            if (folderName) {
+                fetch('ftpScripts/ftpBackend.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `action=create_folder&folder=${folderName}&current_dir=${currentDir}&requested_root=${currentRoot}`
+                }).then(() => fetchFiles());
+            }
+        }
+
+        function moveItem(itemName, itemType) {
+            const destination = prompt('Enter the destination folder name:');
+            if (destination) {
+                fetch('ftpScripts/ftpBackend.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `action=move&source=${itemName}&destination=${destination}&current_dir=${currentDir}&requested_root=${currentRoot}&type=${itemType}`
+                }).then(() => fetchFiles());
+            }
+        }
+
+        function moveUp(itemName) {
+            const parentDir = currentDir.split('/').slice(0, -1).join('/');
+            fetch('ftpScripts/ftpBackend.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=move_up&source=${itemName}&current_dir=${currentDir}&parent_dir=${parentDir}&requested_root=${currentRoot}`
+            }).then(() => fetchFiles());
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchFiles);
     </script>
 </body>
 </html>
